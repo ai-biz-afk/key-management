@@ -52,13 +52,23 @@
     align-items: center;
   }
   .header h1 { font-size: 17px; font-weight: 700; }
-  .header .user-name { font-size: 12px; opacity: 0.9; }
   .header .back-btn {
     background: none; border: none; color: #fff;
     font-size: 16px; cursor: pointer; padding: 4px 8px 4px 0;
     display: none;
   }
   .header-left { display: flex; align-items: center; gap: 4px; }
+  .header-right { display: flex; align-items: center; gap: 8px; }
+  .header-right select {
+    background: rgba(255,255,255,0.2); color: #fff; border: none;
+    font-size: 12px; padding: 4px 8px; border-radius: 6px;
+  }
+  .settings-btn {
+    background: none; border: none; color: #fff;
+    font-size: 18px; cursor: pointer; padding: 4px;
+    opacity: 0.9;
+  }
+  .settings-btn:active { opacity: 0.6; }
 
   /* ── Search & Filter ── */
   .search-bar {
@@ -342,6 +352,81 @@
     color: var(--primary);
   }
 
+  /* ── Staff Management View ── */
+  .staff-view { display: none; }
+  .staff-view.active { display: block; }
+
+  .staff-manage-list { padding: 8px 14px; }
+  .staff-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: box-shadow 0.15s;
+  }
+  .staff-item.dragging {
+    opacity: 0.5;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  .staff-item.drag-over {
+    border-color: var(--primary);
+    border-style: dashed;
+  }
+  .staff-item.inactive {
+    opacity: 0.5;
+    background: var(--gray-bg);
+  }
+  .staff-item .drag-handle {
+    cursor: grab;
+    font-size: 16px;
+    color: var(--text-sub);
+    padding: 4px;
+    touch-action: none;
+  }
+  .staff-item .drag-handle:active { cursor: grabbing; }
+  .staff-item .staff-name {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .staff-item .staff-status {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .staff-item .staff-status.active { background: var(--green-bg); color: var(--green); }
+  .staff-item .staff-status.inactive { background: var(--red-bg); color: var(--red); }
+  .staff-item .staff-actions {
+    display: flex;
+    gap: 4px;
+  }
+  .staff-item .staff-actions button {
+    background: none;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 6px;
+  }
+  .staff-item .staff-actions button:active { background: var(--gray-bg); }
+
+  .add-staff-btn {
+    width: calc(100% - 28px);
+    margin: 8px 14px;
+    padding: 12px;
+    border: 1.5px dashed var(--primary);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
   /* ── Loading ── */
   .loading {
     text-align: center;
@@ -387,12 +472,12 @@
 <!-- ===== Header ===== -->
 <div class="header">
   <div class="header-left">
-    <button class="back-btn" id="backBtn" onclick="showList()">←</button>
+    <button class="back-btn" id="backBtn" onclick="navigateBack()">←</button>
     <h1 id="headerTitle">🔑 鍵管理</h1>
   </div>
-  <div>
-    <select id="currentUser" style="background:rgba(255,255,255,0.2);color:#fff;border:none;font-size:12px;padding:4px 8px;border-radius:6px;">
-    </select>
+  <div class="header-right">
+    <select id="currentUser"></select>
+    <button class="settings-btn" onclick="showStaffView()" title="スタッフ管理">⚙</button>
   </div>
 </div>
 
@@ -431,6 +516,16 @@
   </div>
 </div>
 
+<!-- ===== Staff Management View ===== -->
+<div class="staff-view" id="staffView">
+  <div class="section" style="border-bottom:1px solid var(--border);">
+    <div class="section-title">スタッフ管理</div>
+    <div style="font-size:11px;color:var(--text-sub);">ドラッグで並び替え。変更は自動保存されます。</div>
+  </div>
+  <div class="staff-manage-list" id="staffManageList"></div>
+  <button class="add-staff-btn" onclick="showAddStaffModal()">+ スタッフを追加</button>
+</div>
+
 <!-- ===== Staff Select Modal ===== -->
 <div class="modal-overlay" id="staffModal">
   <div class="modal">
@@ -459,6 +554,20 @@
   </div>
 </div>
 
+<!-- ===== Add/Edit Staff Modal ===== -->
+<div class="modal-overlay" id="staffEditModal">
+  <div class="modal">
+    <h3 id="staffEditModalTitle">スタッフを追加</h3>
+    <label>名前</label>
+    <input type="text" id="staffEditName" placeholder="例: 山田 太郎">
+    <input type="hidden" id="staffEditId">
+    <div class="modal-actions">
+      <button class="cancel" onclick="closeModal('staffEditModal')">キャンセル</button>
+      <button class="confirm" onclick="submitStaffEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== Toast ===== -->
 <div class="toast" id="toast"></div>
 
@@ -472,8 +581,9 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbyHdQelXDMswi_Re1KZCTJx
 let allProperties = [];
 let currentFilter = 'all';
 let currentProperty = null;
-let staffList = [];
+let staffList = [];    // [{staffId, name, order, status}, ...]
 let currentUser = '';
+let currentView = 'list'; // 'list', 'detail', 'staff'
 
 // ── Init ──
 document.addEventListener('DOMContentLoaded', async () => {
@@ -509,22 +619,28 @@ async function loadStaff() {
     const result = await api('getStaff');
     if (result.success) {
       staffList = result.staff;
-      const select = document.getElementById('currentUser');
-      staffList.forEach(name => {
-        const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
-        select.appendChild(opt);
-      });
-      // デフォルトユーザー（localStorageは使えないのでセッション内のみ）
-      currentUser = staffList[0];
-      select.addEventListener('change', e => { currentUser = e.target.value; });
+      populateUserSelect();
     }
   } catch (e) {
     console.error('Staff load failed:', e);
-    // フォールバック
-    staffList = ['読み込み失敗'];
+    staffList = [];
   }
+}
+
+function populateUserSelect() {
+  const select = document.getElementById('currentUser');
+  select.innerHTML = '';
+  const activeStaff = staffList.filter(s => s.status === '有効');
+  activeStaff.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.name;
+    opt.textContent = s.name;
+    select.appendChild(opt);
+  });
+  if (activeStaff.length > 0) {
+    currentUser = activeStaff[0].name;
+  }
+  select.onchange = e => { currentUser = e.target.value; };
 }
 
 // ── Load Properties ──
@@ -549,7 +665,6 @@ function renderList() {
   const query = document.getElementById('searchInput').value.toLowerCase();
   let filtered = allProperties;
 
-  // Search
   if (query) {
     filtered = filtered.filter(p =>
       (p.name && p.name.toLowerCase().includes(query)) ||
@@ -559,7 +674,6 @@ function renderList() {
     );
   }
 
-  // Filter
   if (currentFilter !== 'all') {
     filtered = filtered.filter(p => {
       const status = getStatusCategory(p);
@@ -634,12 +748,32 @@ function getBadge(p) {
   return '<span class="badge badge-other">⚪ —</span>';
 }
 
-// ── Detail View ──
+// ── Navigation ──
+function navigateBack() {
+  if (currentView === 'detail') {
+    showListView();
+  } else if (currentView === 'staff') {
+    showListView();
+  }
+}
+
+function showListView() {
+  currentView = 'list';
+  document.getElementById('listView').classList.remove('hidden');
+  document.getElementById('detailView').classList.remove('active');
+  document.getElementById('staffView').classList.remove('active');
+  document.getElementById('backBtn').style.display = 'none';
+  document.getElementById('headerTitle').textContent = '🔑 鍵管理';
+  renderList();
+}
+
 function showDetail(id) {
   currentProperty = allProperties.find(p => p.id === id);
   if (!currentProperty) return;
 
+  currentView = 'detail';
   document.getElementById('listView').classList.add('hidden');
+  document.getElementById('staffView').classList.remove('active');
   document.getElementById('detailView').classList.add('active');
   document.getElementById('backBtn').style.display = 'block';
 
@@ -651,12 +785,22 @@ function showDetail(id) {
   renderDetail();
 }
 
+function showStaffView() {
+  currentView = 'staff';
+  document.getElementById('listView').classList.add('hidden');
+  document.getElementById('detailView').classList.remove('active');
+  document.getElementById('staffView').classList.add('active');
+  document.getElementById('backBtn').style.display = 'block';
+  document.getElementById('headerTitle').textContent = '⚙ スタッフ管理';
+  renderStaffManageList();
+}
+
+// ── Detail View ──
 function renderDetail() {
   const p = currentProperty;
   const s = p.keyStatus || '';
   const hasHolder = p.holder && s !== 'ソロン';
 
-  // Status section
   let icon, statusText, statusColor;
   if (hasHolder) {
     icon = '🔴'; statusText = p.holder + 'が持出中'; statusColor = 'var(--red)';
@@ -684,7 +828,6 @@ function renderDetail() {
     ${hasHolder ? '<div class="holder-text">📌 ' + escapeHtml(p.holder) + holdDate + '</div>' : ''}
   `;
 
-  // Action buttons
   const isAtSolon = s === 'ソロン';
   const isExcluded = s.includes('土地の為') || s === '居住中' || s.includes('売主様');
 
@@ -709,7 +852,6 @@ function renderDetail() {
   }
   document.getElementById('actionButtons').innerHTML = actionsHtml;
 
-  // Reservations
   const reservations = p.reservations || [];
   let resHtml = '';
   if (reservations.length === 0) {
@@ -729,17 +871,7 @@ function renderDetail() {
       `).join('');
   }
   document.getElementById('reservationList').innerHTML = resHtml;
-
-  // Note
   document.getElementById('noteText').textContent = p.note || '補足情報なし';
-}
-
-function showList() {
-  document.getElementById('listView').classList.remove('hidden');
-  document.getElementById('detailView').classList.remove('active');
-  document.getElementById('backBtn').style.display = 'none';
-  document.getElementById('headerTitle').textContent = '🔑 鍵管理';
-  renderList();
 }
 
 // ── Filter ──
@@ -754,11 +886,12 @@ function filterProperties() {
   renderList();
 }
 
-// ── Staff Modal ──
+// ── Staff Modal (for key takeout) ──
 function showStaffModal(action) {
   const grid = document.getElementById('staffGrid');
-  grid.innerHTML = staffList.map(name => `
-    <button class="staff-btn" onclick="selectStaff('${escapeHtml(name)}', '${action}')">${escapeHtml(name)}</button>
+  const activeStaff = staffList.filter(s => s.status === '有効');
+  grid.innerHTML = activeStaff.map(s => `
+    <button class="staff-btn" onclick="selectStaff('${escapeHtml(s.name)}', '${action}')">${escapeHtml(s.name)}</button>
   `).join('');
 
   if (action === 'takeout') {
@@ -774,7 +907,7 @@ async function selectStaff(name, action) {
     showToast('更新中...');
     const result = await api('updateKeyStatus', {
       recordId: currentProperty.id,
-      keyStatus: currentProperty.keyStatus, // ステータスは変えずに持出者を記録
+      keyStatus: currentProperty.keyStatus,
       holder: name
     }, 'POST');
 
@@ -838,7 +971,6 @@ async function submitReservation() {
   }, 'POST');
 
   if (result.success) {
-    // ローカルデータにも反映
     if (!currentProperty.reservations) currentProperty.reservations = [];
     currentProperty.reservations.push({
       reservationId: result.reservationId,
@@ -867,6 +999,260 @@ async function cancelRes(reservationId) {
     showToast('✅ 予約を取り消しました');
   } else {
     showToast('⚠️ 取消失敗: ' + (result.error || ''));
+  }
+}
+
+// ── Staff Management ──
+function renderStaffManageList() {
+  const container = document.getElementById('staffManageList');
+  const sorted = [...staffList].sort((a, b) => a.order - b.order);
+
+  container.innerHTML = sorted.map(s => {
+    const isInactive = s.status === '無効';
+    return `
+      <div class="staff-item ${isInactive ? 'inactive' : ''}" draggable="true"
+           data-staff-id="${s.staffId}"
+           ondragstart="onDragStart(event)" ondragover="onDragOver(event)"
+           ondragenter="onDragEnter(event)" ondragleave="onDragLeave(event)"
+           ondrop="onDrop(event)" ondragend="onDragEnd(event)"
+           ontouchstart="onTouchStart(event)" ontouchmove="onTouchMove(event)" ontouchend="onTouchEnd(event)">
+        <span class="drag-handle">☰</span>
+        <span class="staff-name">${escapeHtml(s.name)}</span>
+        <span class="staff-status ${isInactive ? 'inactive' : 'active'}">${isInactive ? '無効' : '有効'}</span>
+        <div class="staff-actions">
+          <button onclick="showEditStaffModal('${s.staffId}')" title="編集">✏️</button>
+          <button onclick="toggleStaffStatus('${s.staffId}')" title="${isInactive ? '有効にする' : '無効にする'}">${isInactive ? '🔄' : '🚫'}</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── Drag & Drop (Desktop) ──
+let draggedId = null;
+
+function onDragStart(e) {
+  draggedId = e.currentTarget.dataset.staffId;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+
+function onDragEnter(e) {
+  e.preventDefault();
+  const item = e.currentTarget;
+  if (item.dataset.staffId !== draggedId) {
+    item.classList.add('drag-over');
+  }
+}
+
+function onDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+
+function onDrop(e) {
+  e.preventDefault();
+  const targetId = e.currentTarget.dataset.staffId;
+  e.currentTarget.classList.remove('drag-over');
+  if (draggedId && targetId && draggedId !== targetId) {
+    reorderItems(draggedId, targetId);
+  }
+}
+
+function onDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.staff-item').forEach(el => el.classList.remove('drag-over'));
+  draggedId = null;
+}
+
+// ── Touch Drag (Mobile) ──
+let touchDragId = null;
+let touchClone = null;
+let touchStartY = 0;
+
+function onTouchStart(e) {
+  const handle = e.target.closest('.drag-handle');
+  if (!handle) return;
+
+  e.preventDefault();
+  const item = e.currentTarget;
+  touchDragId = item.dataset.staffId;
+  touchStartY = e.touches[0].clientY;
+
+  item.classList.add('dragging');
+
+  touchClone = item.cloneNode(true);
+  touchClone.style.position = 'fixed';
+  touchClone.style.zIndex = '999';
+  touchClone.style.width = item.offsetWidth + 'px';
+  touchClone.style.pointerEvents = 'none';
+  touchClone.style.opacity = '0.8';
+  touchClone.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+  const rect = item.getBoundingClientRect();
+  touchClone.style.left = rect.left + 'px';
+  touchClone.style.top = rect.top + 'px';
+  document.body.appendChild(touchClone);
+}
+
+function onTouchMove(e) {
+  if (!touchDragId) return;
+  e.preventDefault();
+
+  const touch = e.touches[0];
+  const dy = touch.clientY - touchStartY;
+
+  if (touchClone) {
+    const items = document.querySelectorAll('.staff-item');
+    const dragItem = [...items].find(el => el.dataset.staffId === touchDragId);
+    if (dragItem) {
+      const rect = dragItem.getBoundingClientRect();
+      touchClone.style.top = (rect.top + dy) + 'px';
+    }
+  }
+
+  // Highlight target
+  document.querySelectorAll('.staff-item').forEach(el => el.classList.remove('drag-over'));
+  const target = document.elementFromPoint(touch.clientX, touch.clientY);
+  const targetItem = target ? target.closest('.staff-item') : null;
+  if (targetItem && targetItem.dataset.staffId !== touchDragId) {
+    targetItem.classList.add('drag-over');
+  }
+}
+
+function onTouchEnd(e) {
+  if (!touchDragId) return;
+
+  const items = document.querySelectorAll('.staff-item');
+  items.forEach(el => el.classList.remove('dragging', 'drag-over'));
+
+  if (touchClone) {
+    touchClone.remove();
+    touchClone = null;
+  }
+
+  // Find drop target
+  const touch = e.changedTouches[0];
+  const target = document.elementFromPoint(touch.clientX, touch.clientY);
+  const targetItem = target ? target.closest('.staff-item') : null;
+
+  if (targetItem && targetItem.dataset.staffId !== touchDragId) {
+    reorderItems(touchDragId, targetItem.dataset.staffId);
+  }
+
+  touchDragId = null;
+}
+
+async function reorderItems(fromId, toId) {
+  const sorted = [...staffList].sort((a, b) => a.order - b.order);
+  const ids = sorted.map(s => s.staffId);
+
+  const fromIdx = ids.indexOf(fromId);
+  const toIdx = ids.indexOf(toId);
+  if (fromIdx === -1 || toIdx === -1) return;
+
+  ids.splice(fromIdx, 1);
+  ids.splice(toIdx, 0, fromId);
+
+  // Update local order
+  ids.forEach((id, i) => {
+    const s = staffList.find(st => st.staffId === id);
+    if (s) s.order = i + 1;
+  });
+  renderStaffManageList();
+
+  // Save to server
+  showToast('並び順を保存中...');
+  const result = await api('reorderStaff', { orderedIds: ids }, 'POST');
+  if (result.success) {
+    showToast('✅ 並び順を保存しました');
+    populateUserSelect();
+  } else {
+    showToast('⚠️ 保存失敗: ' + (result.error || ''));
+  }
+}
+
+// ── Add/Edit Staff ──
+function showAddStaffModal() {
+  document.getElementById('staffEditModalTitle').textContent = 'スタッフを追加';
+  document.getElementById('staffEditName').value = '';
+  document.getElementById('staffEditId').value = '';
+  document.getElementById('staffEditModal').classList.add('active');
+}
+
+function showEditStaffModal(staffId) {
+  const s = staffList.find(st => st.staffId === staffId);
+  if (!s) return;
+  document.getElementById('staffEditModalTitle').textContent = '名前を編集';
+  document.getElementById('staffEditName').value = s.name;
+  document.getElementById('staffEditId').value = staffId;
+  document.getElementById('staffEditModal').classList.add('active');
+}
+
+async function submitStaffEdit() {
+  const name = document.getElementById('staffEditName').value.trim();
+  const staffId = document.getElementById('staffEditId').value;
+
+  if (!name) { showToast('名前を入力してください'); return; }
+
+  closeModal('staffEditModal');
+
+  if (staffId) {
+    // Edit
+    showToast('更新中...');
+    const result = await api('updateStaff', { staffId: staffId, name: name }, 'POST');
+    if (result.success) {
+      const s = staffList.find(st => st.staffId === staffId);
+      if (s) s.name = name;
+      renderStaffManageList();
+      populateUserSelect();
+      showToast('✅ 更新しました');
+    } else {
+      showToast('⚠️ 更新失敗: ' + (result.error || ''));
+    }
+  } else {
+    // Add
+    showToast('追加中...');
+    const result = await api('addStaff', { name: name }, 'POST');
+    if (result.success) {
+      staffList.push({
+        staffId: result.staffId,
+        name: name,
+        order: staffList.length + 1,
+        status: '有効'
+      });
+      renderStaffManageList();
+      populateUserSelect();
+      showToast('✅ 追加しました');
+    } else {
+      showToast('⚠️ 追加失敗: ' + (result.error || ''));
+    }
+  }
+}
+
+async function toggleStaffStatus(staffId) {
+  const s = staffList.find(st => st.staffId === staffId);
+  if (!s) return;
+
+  const newStatus = s.status === '有効' ? '無効' : '有効';
+  const msg = newStatus === '無効'
+    ? s.name + 'を無効にしますか？（選択肢に表示されなくなります）'
+    : s.name + 'を有効に戻しますか？';
+
+  if (!confirm(msg)) return;
+
+  showToast('更新中...');
+  const result = await api('updateStaff', { staffId: staffId, status: newStatus }, 'POST');
+  if (result.success) {
+    s.status = newStatus;
+    renderStaffManageList();
+    populateUserSelect();
+    showToast('✅ ' + s.name + 'を' + newStatus + 'にしました');
+  } else {
+    showToast('⚠️ 更新失敗: ' + (result.error || ''));
   }
 }
 
