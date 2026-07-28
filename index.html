@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>🔑 鍵管理</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  :root {
+    --primary: #4285f4;
+    --primary-dark: #3367d6;
+    --green: #1e7e34;
+    --green-bg: #e6f4ea;
+    --red: #c62828;
+    --red-bg: #fce8e6;
+    --orange: #e65100;
+    --orange-bg: #fff3e0;
+    --blue: #1565c0;
+    --blue-bg: #e8f0fe;
+    --gray: #666;
+    --gray-bg: #f0f0f0;
+    --purple: #6a1b9a;
+    --purple-bg: #f3e8fd;
+    --bg: #f8f9fa;
+    --card-bg: #fff;
+    --border: #e8e8e8;
+    --text: #1a1a1a;
+    --text-sub: #888;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--primary);
+    color: #fff;
+    padding: 14px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .header h1 { font-size: 17px; font-weight: 700; }
+  .header .user-name { font-size: 12px; opacity: 0.9; }
+  .header .back-btn {
+    background: none; border: none; color: #fff;
+    font-size: 16px; cursor: pointer; padding: 4px 8px 4px 0;
+    display: none;
+  }
+  .header-left { display: flex; align-items: center; gap: 4px; }
+
+  /* ── Search & Filter ── */
+  .search-bar {
+    padding: 10px 14px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .search-bar input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    background: var(--bg);
+    outline: none;
+  }
+  .search-bar input:focus { border-color: var(--primary); }
+
+  .filter-tabs {
+    display: flex;
+    gap: 6px;
+    padding: 8px 14px;
+    overflow-x: auto;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+    -webkit-overflow-scrolling: touch;
+  }
+  .filter-tabs button {
+    padding: 5px 12px;
+    border-radius: 14px;
+    border: none;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    background: var(--gray-bg);
+    color: var(--gray);
+    transition: all 0.2s;
+  }
+  .filter-tabs button.active {
+    background: var(--primary);
+    color: #fff;
+  }
+
+  /* ── Property List ── */
+  .property-list { padding: 8px 14px; }
+  .property-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: transform 0.1s;
+    -webkit-user-select: none;
+  }
+  .property-card:active { transform: scale(0.98); }
+  .property-card .top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .property-card .prop-name {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .property-card .prop-address {
+    font-size: 11px;
+    color: var(--text-sub);
+    margin-top: 2px;
+  }
+  .property-card .prop-info {
+    font-size: 11px;
+    margin-top: 5px;
+  }
+
+  /* ── Status Badge ── */
+  .badge {
+    padding: 3px 9px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .badge-solon { background: var(--green-bg); color: var(--green); }
+  .badge-out { background: var(--red-bg); color: var(--red); }
+  .badge-agent { background: var(--orange-bg); color: var(--orange); }
+  .badge-genchi { background: var(--blue-bg); color: var(--blue); }
+  .badge-jyuchu { background: var(--purple-bg); color: var(--purple); }
+  .badge-other { background: var(--gray-bg); color: var(--gray); }
+
+  /* ── Detail View ── */
+  .detail-view { display: none; }
+  .detail-view.active { display: block; }
+  .list-view.hidden { display: none; }
+
+  .detail-status {
+    text-align: center;
+    padding: 24px 16px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .detail-status .icon { font-size: 48px; }
+  .detail-status .status-text { font-size: 18px; font-weight: 700; margin-top: 6px; }
+  .detail-status .address-text { font-size: 12px; color: var(--text-sub); margin-top: 4px; }
+  .detail-status .holder-text { font-size: 13px; color: var(--red); margin-top: 6px; font-weight: 600; }
+
+  /* ── Action Buttons ── */
+  .action-buttons {
+    display: flex;
+    gap: 8px;
+    padding: 14px 16px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .action-btn {
+    flex: 1;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .action-btn:active { opacity: 0.7; }
+  .action-btn.primary { background: var(--red); color: #fff; }
+  .action-btn.secondary { background: var(--green); color: #fff; }
+  .action-btn.disabled { background: var(--gray-bg); color: var(--text-sub); pointer-events: none; }
+
+  /* ── Sections ── */
+  .section {
+    padding: 14px 16px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .section-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  /* ── Reservation Cards ── */
+  .reservation-card {
+    background: var(--orange-bg);
+    border: 1px solid #ffe0b2;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .reservation-card .agent { font-size: 13px; font-weight: 600; color: var(--orange); }
+  .reservation-card .datetime { font-size: 11px; color: #bf360c; margin-top: 2px; }
+  .reservation-card .cancel-btn {
+    background: none; border: none; color: var(--text-sub);
+    font-size: 12px; cursor: pointer; padding: 4px 8px;
+  }
+  .reservation-card .cancel-btn:hover { color: var(--red); }
+
+  .no-reservations {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-sub);
+  }
+
+  .add-reservation-btn {
+    width: 100%;
+    padding: 10px;
+    border: 1.5px dashed var(--primary);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+
+  .note-text {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--gray);
+    min-height: 40px;
+  }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--card-bg);
+    width: 100%;
+    max-width: 480px;
+    border-radius: 16px 16px 0 0;
+    padding: 20px 16px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .modal h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  .modal label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    margin-top: 12px;
+  }
+  .modal select, .modal input, .modal textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    background: var(--bg);
+  }
+  .modal select:focus, .modal input:focus, .modal textarea:focus {
+    border-color: var(--primary);
+  }
+  .modal textarea { resize: vertical; min-height: 60px; }
+
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .modal-actions button {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .modal-actions .cancel { background: var(--gray-bg); color: var(--text); }
+  .modal-actions .confirm { background: var(--primary); color: #fff; }
+
+  /* ── Staff Select Grid ── */
+  .staff-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .staff-btn {
+    padding: 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    background: var(--card-bg);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .staff-btn:active, .staff-btn.selected {
+    border-color: var(--primary);
+    background: var(--blue-bg);
+    color: var(--primary);
+  }
+
+  /* ── Loading ── */
+  .loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-sub);
+    font-size: 14px;
+  }
+  .loading .spinner {
+    display: inline-block;
+    width: 32px; height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: #333;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 300;
+    transition: transform 0.3s ease;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── PWA: no scroll bounce ── */
+  html { overscroll-behavior: none; }
+</style>
+</head>
+<body>
+
+<!-- ===== Header ===== -->
+<div class="header">
+  <div class="header-left">
+    <button class="back-btn" id="backBtn" onclick="showList()">←</button>
+    <h1 id="headerTitle">🔑 鍵管理</h1>
+  </div>
+  <div>
+    <select id="currentUser" style="background:rgba(255,255,255,0.2);color:#fff;border:none;font-size:12px;padding:4px 8px;border-radius:6px;">
+    </select>
+  </div>
+</div>
+
+<!-- ===== List View ===== -->
+<div class="list-view" id="listView">
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="🔍 物件名・住所で検索" oninput="filterProperties()">
+  </div>
+  <div class="filter-tabs" id="filterTabs">
+    <button class="active" data-filter="all" onclick="setFilter('all', this)">全て</button>
+    <button data-filter="ソロン" onclick="setFilter('ソロン', this)">ソロン</button>
+    <button data-filter="持出中" onclick="setFilter('持出中', this)">持出中</button>
+    <button data-filter="他業者" onclick="setFilter('他業者', this)">他業者</button>
+    <button data-filter="現地キー" onclick="setFilter('現地キー', this)">現地キー</button>
+    <button data-filter="予約あり" onclick="setFilter('予約あり', this)">予約あり</button>
+  </div>
+  <div class="property-list" id="propertyList">
+    <div class="loading">
+      <div class="spinner"></div><br>物件データを読み込み中...
+    </div>
+  </div>
+</div>
+
+<!-- ===== Detail View ===== -->
+<div class="detail-view" id="detailView">
+  <div class="detail-status" id="detailStatus"></div>
+  <div class="action-buttons" id="actionButtons"></div>
+  <div class="section" id="reservationSection">
+    <div class="section-title">📅 貸出予約</div>
+    <div id="reservationList"></div>
+    <button class="add-reservation-btn" onclick="showReservationModal()">+ 他業者の予約を追加</button>
+  </div>
+  <div class="section">
+    <div class="section-title">📝 補足</div>
+    <div class="note-text" id="noteText"></div>
+  </div>
+</div>
+
+<!-- ===== Staff Select Modal ===== -->
+<div class="modal-overlay" id="staffModal">
+  <div class="modal">
+    <h3 id="staffModalTitle">🔑 誰が持ち出しますか？</h3>
+    <div class="staff-grid" id="staffGrid"></div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="cancel" onclick="closeModal('staffModal')">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Reservation Modal ===== -->
+<div class="modal-overlay" id="reservationModal">
+  <div class="modal">
+    <h3>📅 貸出予約を追加</h3>
+    <label>業者名</label>
+    <input type="text" id="resAgentName" placeholder="例: ○○不動産">
+    <label>案内日時</label>
+    <input type="datetime-local" id="resDateTime">
+    <label>メモ（任意）</label>
+    <textarea id="resMemo" placeholder="連絡先や注意事項など"></textarea>
+    <div class="modal-actions">
+      <button class="cancel" onclick="closeModal('reservationModal')">キャンセル</button>
+      <button class="confirm" onclick="submitReservation()">追加する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Toast ===== -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// 設定: GASのデプロイURL をここに貼り付け
+// ============================================================
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyHdQelXDMswi_Re1KZCTJx3ZpeRpyA6u8IjS9T__dG4aH6jCWPqJP_DYOls6B1vAFarw/exec';
+
+// ── State ──
+let allProperties = [];
+let currentFilter = 'all';
+let currentProperty = null;
+let staffList = [];
+let currentUser = '';
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadStaff();
+  await loadProperties();
+});
+
+// ── API Call Helper ──
+async function api(action, params = {}, method = 'GET') {
+  const url = GAS_URL + '?action=' + action;
+
+  if (method === 'GET') {
+    let getUrl = url;
+    Object.keys(params).forEach(k => {
+      getUrl += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+    });
+    const res = await fetch(getUrl, { redirect: 'follow' });
+    return res.json();
+  } else {
+    const res = await fetch(url, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(params)
+    });
+    return res.json();
+  }
+}
+
+// ── Load Staff ──
+async function loadStaff() {
+  try {
+    const result = await api('getStaff');
+    if (result.success) {
+      staffList = result.staff;
+      const select = document.getElementById('currentUser');
+      staffList.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+      });
+      // デフォルトユーザー（localStorageは使えないのでセッション内のみ）
+      currentUser = staffList[0];
+      select.addEventListener('change', e => { currentUser = e.target.value; });
+    }
+  } catch (e) {
+    console.error('Staff load failed:', e);
+    // フォールバック
+    staffList = ['読み込み失敗'];
+  }
+}
+
+// ── Load Properties ──
+async function loadProperties() {
+  try {
+    const result = await api('getProperties');
+    if (result.success) {
+      allProperties = result.properties;
+      renderList();
+    } else {
+      document.getElementById('propertyList').innerHTML =
+        '<div class="loading">⚠️ データ取得に失敗しました<br><small>' + (result.error || '') + '</small></div>';
+    }
+  } catch (e) {
+    document.getElementById('propertyList').innerHTML =
+      '<div class="loading">⚠️ 接続に失敗しました<br><small>GASのURLを確認してください</small></div>';
+  }
+}
+
+// ── Render List ──
+function renderList() {
+  const query = document.getElementById('searchInput').value.toLowerCase();
+  let filtered = allProperties;
+
+  // Search
+  if (query) {
+    filtered = filtered.filter(p =>
+      (p.name && p.name.toLowerCase().includes(query)) ||
+      (p.address && p.address.toLowerCase().includes(query)) ||
+      (p.displayAddress && p.displayAddress.toLowerCase().includes(query)) ||
+      (p.room && p.room.toLowerCase().includes(query))
+    );
+  }
+
+  // Filter
+  if (currentFilter !== 'all') {
+    filtered = filtered.filter(p => {
+      const status = getStatusCategory(p);
+      if (currentFilter === '予約あり') return p.reservations && p.reservations.length > 0;
+      if (currentFilter === '持出中') return status === '持出中';
+      if (currentFilter === '他業者') return status === '他業者';
+      if (currentFilter === '現地キー') return p.keyStatus && p.keyStatus.includes('現地キー');
+      return p.keyStatus === currentFilter;
+    });
+  }
+
+  const container = document.getElementById('propertyList');
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="loading">該当する物件がありません</div>';
+    return;
+  }
+
+  container.innerHTML = filtered.map(p => {
+    const badge = getBadge(p);
+    const displayName = p.name ? (p.name + (p.room ? ' ' + p.room : '')) : (p.displayAddress || p.address);
+    const address = p.address || p.displayAddress || '';
+    let info = '';
+
+    if (p.holder && p.keyStatus !== 'ソロン') {
+      info = `<div class="prop-info" style="color:var(--red);">📌 ${p.holder}が持出中</div>`;
+    }
+    if (p.reservations && p.reservations.length > 0) {
+      const next = p.reservations.sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime))[0];
+      const dt = formatDateTime(next.dateTime);
+      info += `<div class="prop-info" style="color:var(--orange);">📅 ${dt} ${next.agentName}が案内予定</div>`;
+    }
+
+    return `
+      <div class="property-card" onclick="showDetail('${p.id}')">
+        <div class="top-row">
+          <div>
+            <div class="prop-name">${escapeHtml(displayName)}</div>
+            <div class="prop-address">${escapeHtml(address)}</div>
+          </div>
+          ${badge}
+        </div>
+        ${info}
+      </div>
+    `;
+  }).join('');
+}
+
+// ── Status Helpers ──
+function getStatusCategory(p) {
+  if (!p.keyStatus) return 'その他';
+  if (p.keyStatus === 'ソロン') return 'ソロン';
+  if (p.keyStatus.includes('現地キー')) return '現地キー';
+  if (p.keyStatus === '居住中') return '居住中';
+  if (p.keyStatus.includes('売主様')) return '売主様';
+  if (p.keyStatus.includes('土地の為')) return '除外';
+  if (p.keyStatus.includes('その他')) return 'その他';
+  if (p.holder) return '持出中';
+  return 'その他';
+}
+
+function getBadge(p) {
+  const s = p.keyStatus || '';
+  const hasHolder = p.holder && s !== 'ソロン';
+
+  if (hasHolder) return '<span class="badge badge-out">🔴 持出中</span>';
+  if (s === 'ソロン') return '<span class="badge badge-solon">🟢 ソロン</span>';
+  if (s.includes('現地キー')) return '<span class="badge badge-genchi">🔵 現地キー</span>';
+  if (s === '居住中') return '<span class="badge badge-jyuchu">🟣 居住中</span>';
+  if (s.includes('売主様')) return '<span class="badge badge-jyuchu">🟣 売主様保管</span>';
+  if (s.includes('土地の為')) return '<span class="badge badge-other">⚪ 除外</span>';
+  if (s.includes('その他')) return '<span class="badge badge-other">⚪ その他</span>';
+  return '<span class="badge badge-other">⚪ —</span>';
+}
+
+// ── Detail View ──
+function showDetail(id) {
+  currentProperty = allProperties.find(p => p.id === id);
+  if (!currentProperty) return;
+
+  document.getElementById('listView').classList.add('hidden');
+  document.getElementById('detailView').classList.add('active');
+  document.getElementById('backBtn').style.display = 'block';
+
+  const displayName = currentProperty.name
+    ? (currentProperty.name + (currentProperty.room ? ' ' + currentProperty.room : ''))
+    : (currentProperty.displayAddress || currentProperty.address);
+  document.getElementById('headerTitle').textContent = displayName;
+
+  renderDetail();
+}
+
+function renderDetail() {
+  const p = currentProperty;
+  const s = p.keyStatus || '';
+  const hasHolder = p.holder && s !== 'ソロン';
+
+  // Status section
+  let icon, statusText, statusColor;
+  if (hasHolder) {
+    icon = '🔴'; statusText = p.holder + 'が持出中'; statusColor = 'var(--red)';
+  } else if (s === 'ソロン') {
+    icon = '🟢'; statusText = 'ソロンにあります'; statusColor = 'var(--green)';
+  } else if (s.includes('現地キー')) {
+    icon = '🔵'; statusText = '現地キー'; statusColor = 'var(--blue)';
+  } else if (s === '居住中') {
+    icon = '🟣'; statusText = '居住中'; statusColor = 'var(--purple)';
+  } else if (s.includes('売主様')) {
+    icon = '🟣'; statusText = '売主様にて保管'; statusColor = 'var(--purple)';
+  } else if (s.includes('土地の為')) {
+    icon = '⚪'; statusText = '土地の為、除外'; statusColor = 'var(--gray)';
+  } else {
+    icon = '⚪'; statusText = s || '未設定'; statusColor = 'var(--gray)';
+  }
+
+  const address = p.address || p.displayAddress || '';
+  const holdDate = p.holdDate ? '<br><span style="font-size:11px;color:var(--text-sub);">' + formatDateTime(p.holdDate) + ' から</span>' : '';
+
+  document.getElementById('detailStatus').innerHTML = `
+    <div class="icon">${icon}</div>
+    <div class="status-text" style="color:${statusColor}">${escapeHtml(statusText)}</div>
+    <div class="address-text">${escapeHtml(address)}</div>
+    ${hasHolder ? '<div class="holder-text">📌 ' + escapeHtml(p.holder) + holdDate + '</div>' : ''}
+  `;
+
+  // Action buttons
+  const isAtSolon = s === 'ソロン';
+  const isExcluded = s.includes('土地の為') || s === '居住中' || s.includes('売主様');
+
+  let actionsHtml = '';
+  if (isExcluded) {
+    actionsHtml = '<button class="action-btn disabled">この物件は鍵操作対象外です</button>';
+  } else if (isAtSolon) {
+    actionsHtml = `
+      <button class="action-btn primary" onclick="showStaffModal('takeout')">🔑 持ち出す</button>
+      <button class="action-btn disabled">✅ 返却する</button>
+    `;
+  } else if (hasHolder) {
+    actionsHtml = `
+      <button class="action-btn disabled">🔑 持ち出す</button>
+      <button class="action-btn secondary" onclick="returnKey()">✅ 返却する</button>
+    `;
+  } else {
+    actionsHtml = `
+      <button class="action-btn primary" onclick="showStaffModal('takeout')">🔑 持ち出す</button>
+      <button class="action-btn secondary" onclick="returnKey()">✅ 返却する</button>
+    `;
+  }
+  document.getElementById('actionButtons').innerHTML = actionsHtml;
+
+  // Reservations
+  const reservations = p.reservations || [];
+  let resHtml = '';
+  if (reservations.length === 0) {
+    resHtml = '<div class="no-reservations">予約なし</div>';
+  } else {
+    resHtml = reservations
+      .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime))
+      .map(r => `
+        <div class="reservation-card">
+          <div>
+            <div class="agent">${escapeHtml(r.agentName)}</div>
+            <div class="datetime">${formatDateTime(r.dateTime)} 案内予定</div>
+            ${r.memo ? '<div style="font-size:10px;color:var(--gray);margin-top:2px;">' + escapeHtml(r.memo) + '</div>' : ''}
+          </div>
+          <button class="cancel-btn" onclick="cancelRes('${r.reservationId}')">✕ 取消</button>
+        </div>
+      `).join('');
+  }
+  document.getElementById('reservationList').innerHTML = resHtml;
+
+  // Note
+  document.getElementById('noteText').textContent = p.note || '補足情報なし';
+}
+
+function showList() {
+  document.getElementById('listView').classList.remove('hidden');
+  document.getElementById('detailView').classList.remove('active');
+  document.getElementById('backBtn').style.display = 'none';
+  document.getElementById('headerTitle').textContent = '🔑 鍵管理';
+  renderList();
+}
+
+// ── Filter ──
+function setFilter(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-tabs button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderList();
+}
+
+function filterProperties() {
+  renderList();
+}
+
+// ── Staff Modal ──
+function showStaffModal(action) {
+  const grid = document.getElementById('staffGrid');
+  grid.innerHTML = staffList.map(name => `
+    <button class="staff-btn" onclick="selectStaff('${escapeHtml(name)}', '${action}')">${escapeHtml(name)}</button>
+  `).join('');
+
+  if (action === 'takeout') {
+    document.getElementById('staffModalTitle').textContent = '🔑 誰が持ち出しますか？';
+  }
+  document.getElementById('staffModal').classList.add('active');
+}
+
+async function selectStaff(name, action) {
+  closeModal('staffModal');
+
+  if (action === 'takeout') {
+    showToast('更新中...');
+    const result = await api('updateKeyStatus', {
+      recordId: currentProperty.id,
+      keyStatus: currentProperty.keyStatus, // ステータスは変えずに持出者を記録
+      holder: name
+    }, 'POST');
+
+    if (result.success) {
+      currentProperty.holder = name;
+      currentProperty.holdDate = new Date().toISOString();
+      renderDetail();
+      showToast('✅ ' + name + 'が持ち出しました');
+    } else {
+      showToast('⚠️ 更新失敗: ' + (result.error || ''));
+    }
+  }
+}
+
+// ── Return Key ──
+async function returnKey() {
+  if (!confirm(currentProperty.holder + 'の鍵を返却しますか？')) return;
+
+  showToast('更新中...');
+  const result = await api('updateKeyStatus', {
+    recordId: currentProperty.id,
+    keyStatus: 'ソロン',
+    holder: ''
+  }, 'POST');
+
+  if (result.success) {
+    currentProperty.keyStatus = 'ソロン';
+    currentProperty.holder = '';
+    currentProperty.holdDate = '';
+    renderDetail();
+    showToast('✅ 鍵を返却しました');
+  } else {
+    showToast('⚠️ 返却失敗: ' + (result.error || ''));
+  }
+}
+
+// ── Reservation Modal ──
+function showReservationModal() {
+  document.getElementById('resAgentName').value = '';
+  document.getElementById('resDateTime').value = '';
+  document.getElementById('resMemo').value = '';
+  document.getElementById('reservationModal').classList.add('active');
+}
+
+async function submitReservation() {
+  const agentName = document.getElementById('resAgentName').value.trim();
+  const dateTime = document.getElementById('resDateTime').value;
+
+  if (!agentName) { showToast('業者名を入力してください'); return; }
+  if (!dateTime) { showToast('案内日時を選択してください'); return; }
+
+  closeModal('reservationModal');
+  showToast('予約を追加中...');
+
+  const result = await api('addReservation', {
+    recordId: currentProperty.id,
+    agentName: agentName,
+    dateTime: dateTime,
+    memo: document.getElementById('resMemo').value.trim(),
+    registeredBy: currentUser
+  }, 'POST');
+
+  if (result.success) {
+    // ローカルデータにも反映
+    if (!currentProperty.reservations) currentProperty.reservations = [];
+    currentProperty.reservations.push({
+      reservationId: result.reservationId,
+      recordId: currentProperty.id,
+      agentName: agentName,
+      dateTime: dateTime,
+      status: '有効',
+      memo: document.getElementById('resMemo').value.trim()
+    });
+    renderDetail();
+    showToast('✅ 予約を追加しました');
+  } else {
+    showToast('⚠️ 追加失敗: ' + (result.error || ''));
+  }
+}
+
+async function cancelRes(reservationId) {
+  if (!confirm('この予約を取り消しますか？')) return;
+
+  showToast('取消中...');
+  const result = await api('cancelReservation', { reservationId: reservationId }, 'POST');
+
+  if (result.success) {
+    currentProperty.reservations = currentProperty.reservations.filter(r => r.reservationId !== reservationId);
+    renderDetail();
+    showToast('✅ 予約を取り消しました');
+  } else {
+    showToast('⚠️ 取消失敗: ' + (result.error || ''));
+  }
+}
+
+// ── Utilities ──
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+function formatDateTime(isoStr) {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return isoStr;
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+  const weekday = weekdays[d.getDay()];
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${month}/${day}（${weekday}）${hours}:${minutes}`;
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('active');
+  });
+});
+</script>
+</body>
+</html>
