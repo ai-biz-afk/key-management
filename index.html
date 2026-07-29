@@ -500,14 +500,14 @@
 <div class="detail-view" id="detailView">
   <div class="detail-status" id="detailStatus"></div>
   <div class="action-buttons" id="actionButtons"></div>
-  <div class="section" id="reservationSection">
-    <div class="section-title">📅 持出予約</div>
-    <div id="reservationList"></div>
-    <button class="add-reservation-btn" onclick="showReservationModal()">+ 予約を追加</button>
-  </div>
   <div class="section">
     <div class="section-title">📝 補足</div>
     <div class="note-text" id="noteText"></div>
+  </div>
+  <div class="section" id="reservationSection">
+    <div class="section-title">📅 持出予約</div>
+    <button class="add-reservation-btn" onclick="showReservationModal()" style="margin-top:0;margin-bottom:8px;">+ 予約を追加</button>
+    <div id="reservationList"></div>
   </div>
 </div>
 
@@ -889,7 +889,9 @@ function showStaffModal(action) {
   const activeStaff = staffList.filter(s => s.status === '有効');
   grid.innerHTML = activeStaff.map(s => `
     <button class="staff-btn" onclick="selectStaff('${escapeHtml(s.name)}', '${action}')">${escapeHtml(s.name)}</button>
-  `).join('');
+  `).join('') + `
+    <button class="staff-btn" style="border-color:var(--orange);color:var(--orange);" onclick="selectStaff('他業者', '${action}')">他業者</button>
+  `;
 
   if (action === 'takeout') {
     document.getElementById('staffModalTitle').textContent = '🔑 誰が持ち出しますか？';
