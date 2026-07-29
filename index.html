@@ -902,10 +902,14 @@ async function selectStaff(name, action) {
 
   if (action === 'takeout') {
     showToast('更新中...');
+    const propName = currentProperty.name
+      ? (currentProperty.name + (currentProperty.room ? ' ' + currentProperty.room : ''))
+      : (currentProperty.displayAddress || currentProperty.address);
     const result = await api('updateKeyStatus', {
       recordId: currentProperty.id,
       action: 'takeout',
-      holder: name
+      holder: name,
+      propertyName: propName
     }, 'POST');
 
     if (result.success) {
@@ -924,9 +928,13 @@ async function returnKey() {
   if (!confirm(currentProperty.holder + 'の鍵を返却しますか？')) return;
 
   showToast('更新中...');
+  const propName = currentProperty.name
+    ? (currentProperty.name + (currentProperty.room ? ' ' + currentProperty.room : ''))
+    : (currentProperty.displayAddress || currentProperty.address);
   const result = await api('updateKeyStatus', {
     recordId: currentProperty.id,
-    action: 'return'
+    action: 'return',
+    propertyName: propName
   }, 'POST');
 
   if (result.success) {
