@@ -829,15 +829,15 @@ function renderDetail() {
   let actionsHtml = '';
   if (isExcluded) {
     actionsHtml = '<button class="action-btn disabled">この物件は鍵操作対象外です</button>';
-  } else if (isAtSolon) {
-    actionsHtml = `
-      <button class="action-btn primary" onclick="showStaffModal('takeout')">🔑 持ち出す</button>
-      <button class="action-btn disabled">✅ 返却する</button>
-    `;
   } else if (hasHolder) {
     actionsHtml = `
       <button class="action-btn disabled">🔑 持ち出す</button>
       <button class="action-btn secondary" onclick="returnKey()">✅ 返却する</button>
+    `;
+  } else if (isAtSolon) {
+    actionsHtml = `
+      <button class="action-btn primary" onclick="showStaffModal('takeout')">🔑 持ち出す</button>
+      <button class="action-btn disabled">✅ 返却する</button>
     `;
   } else {
     actionsHtml = `
