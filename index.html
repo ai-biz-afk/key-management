@@ -546,7 +546,11 @@
     <label>案内日</label>
     <input type="date" id="resDate">
     <label>案内時間</label>
-    <select id="resTime"></select>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <select id="resHour" style="flex:1;"></select>
+      <span style="font-size:16px;font-weight:600;">:</span>
+      <select id="resMinute" style="flex:1;"></select>
+    </div>
     <label>メモ（任意）</label>
     <textarea id="resMemo" placeholder="連絡先や注意事項など"></textarea>
     <div id="resRegisteredByWrap" style="display:none;">
@@ -986,24 +990,29 @@ function setResType(type) {
   }
 }
 
-function populateTimeSelect() {
-  const select = document.getElementById('resTime');
-  select.innerHTML = '<option value="">-- 選択 --</option>';
+function populateTimeSelects() {
+  const hourSel = document.getElementById('resHour');
+  const minSel = document.getElementById('resMinute');
+  hourSel.innerHTML = '<option value="">時</option>';
+  minSel.innerHTML = '<option value="">分</option>';
   for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += 15) {
-      const val = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
-      const opt = document.createElement('option');
-      opt.value = val;
-      opt.textContent = val;
-      select.appendChild(opt);
-    }
+    const opt = document.createElement('option');
+    opt.value = String(h).padStart(2, '0');
+    opt.textContent = h + '時';
+    hourSel.appendChild(opt);
   }
+  ['00', '30'].forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = m + '分';
+    minSel.appendChild(opt);
+  });
 }
 
 function showReservationModal() {
   document.getElementById('resAgentName').value = '';
   document.getElementById('resDate').value = '';
-  populateTimeSelect();
+  populateTimeSelects();
   document.getElementById('resMemo').value = '';
   populateStaffSelect('resStaffSelect');
   populateStaffSelect('resRegisteredBy');
@@ -1016,13 +1025,14 @@ async function submitReservation() {
     ? document.getElementById('resStaffSelect').value
     : document.getElementById('resAgentName').value.trim();
   const resDate = document.getElementById('resDate').value;
-  const resTime = document.getElementById('resTime').value;
+  const resHour = document.getElementById('resHour').value;
+  const resMin = document.getElementById('resMinute').value;
 
   if (!agentName) { showToast('予約者名を入力してください'); return; }
   if (!resDate) { showToast('案内日を選択してください'); return; }
-  if (!resTime) { showToast('案内時間を選択してください'); return; }
+  if (!resHour || !resMin) { showToast('案内時間を選択してください'); return; }
 
-  const dateTime = resDate + 'T' + resTime;
+  const dateTime = resDate + 'T' + resHour + ':' + resMin;
 
   closeModal('reservationModal');
   showToast('予約を追加中...');
