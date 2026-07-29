@@ -543,8 +543,10 @@
     </div>
     <select id="resStaffSelect" style="margin-bottom:0;"></select>
     <input type="text" id="resAgentName" placeholder="例: ○○不動産" style="display:none;">
-    <label>案内日時</label>
-    <input type="datetime-local" id="resDateTime">
+    <label>案内日</label>
+    <input type="date" id="resDate">
+    <label>案内時間</label>
+    <select id="resTime"></select>
     <label>メモ（任意）</label>
     <textarea id="resMemo" placeholder="連絡先や注意事項など"></textarea>
     <div id="resRegisteredByWrap" style="display:none;">
@@ -984,9 +986,24 @@ function setResType(type) {
   }
 }
 
+function populateTimeSelect() {
+  const select = document.getElementById('resTime');
+  select.innerHTML = '<option value="">-- 選択 --</option>';
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const val = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = val;
+      select.appendChild(opt);
+    }
+  }
+}
+
 function showReservationModal() {
   document.getElementById('resAgentName').value = '';
-  document.getElementById('resDateTime').value = '';
+  document.getElementById('resDate').value = '';
+  populateTimeSelect();
   document.getElementById('resMemo').value = '';
   populateStaffSelect('resStaffSelect');
   populateStaffSelect('resRegisteredBy');
@@ -998,10 +1015,14 @@ async function submitReservation() {
   const agentName = resType === 'staff'
     ? document.getElementById('resStaffSelect').value
     : document.getElementById('resAgentName').value.trim();
-  const dateTime = document.getElementById('resDateTime').value;
+  const resDate = document.getElementById('resDate').value;
+  const resTime = document.getElementById('resTime').value;
 
   if (!agentName) { showToast('予約者名を入力してください'); return; }
-  if (!dateTime) { showToast('案内日時を選択してください'); return; }
+  if (!resDate) { showToast('案内日を選択してください'); return; }
+  if (!resTime) { showToast('案内時間を選択してください'); return; }
+
+  const dateTime = resDate + 'T' + resTime;
 
   closeModal('reservationModal');
   showToast('予約を追加中...');
