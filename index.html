@@ -501,9 +501,9 @@
   <div class="detail-status" id="detailStatus"></div>
   <div class="action-buttons" id="actionButtons"></div>
   <div class="section" id="reservationSection">
-    <div class="section-title">📅 貸出予約</div>
+    <div class="section-title">📅 持出予約</div>
     <div id="reservationList"></div>
-    <button class="add-reservation-btn" onclick="showReservationModal()">+ 他業者の予約を追加</button>
+    <button class="add-reservation-btn" onclick="showReservationModal()">+ 予約を追加</button>
   </div>
   <div class="section">
     <div class="section-title">📝 補足</div>
@@ -535,9 +535,14 @@
 <!-- ===== Reservation Modal ===== -->
 <div class="modal-overlay" id="reservationModal">
   <div class="modal">
-    <h3>📅 貸出予約を追加</h3>
-    <label>業者名</label>
-    <input type="text" id="resAgentName" placeholder="例: ○○不動産">
+    <h3>📅 持出予約を追加</h3>
+    <label>予約者名</label>
+    <div style="display:flex;gap:6px;margin-bottom:8px;">
+      <button type="button" id="resTypeStaff" onclick="setResType('staff')" style="flex:1;padding:8px;border:1.5px solid var(--primary);border-radius:8px;background:var(--blue-bg);color:var(--primary);font-size:12px;font-weight:600;cursor:pointer;">自社スタッフ</button>
+      <button type="button" id="resTypeExternal" onclick="setResType('external')" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--gray);font-size:12px;font-weight:600;cursor:pointer;">外部業者</button>
+    </div>
+    <select id="resStaffSelect" style="margin-bottom:0;"></select>
+    <input type="text" id="resAgentName" placeholder="例: ○○不動産" style="display:none;">
     <label>案内日時</label>
     <input type="datetime-local" id="resDateTime">
     <label>メモ（任意）</label>
@@ -937,19 +942,53 @@ async function returnKey() {
 }
 
 // ── Reservation Modal ──
+let resType = 'staff'; // 'staff' or 'external'
+
+function setResType(type) {
+  resType = type;
+  const staffBtn = document.getElementById('resTypeStaff');
+  const extBtn = document.getElementById('resTypeExternal');
+  const staffSelect = document.getElementById('resStaffSelect');
+  const agentInput = document.getElementById('resAgentName');
+
+  if (type === 'staff') {
+    staffBtn.style.borderColor = 'var(--primary)';
+    staffBtn.style.background = 'var(--blue-bg)';
+    staffBtn.style.color = 'var(--primary)';
+    extBtn.style.borderColor = 'var(--border)';
+    extBtn.style.background = 'var(--card-bg)';
+    extBtn.style.color = 'var(--gray)';
+    staffSelect.style.display = '';
+    agentInput.style.display = 'none';
+  } else {
+    extBtn.style.borderColor = 'var(--primary)';
+    extBtn.style.background = 'var(--blue-bg)';
+    extBtn.style.color = 'var(--primary)';
+    staffBtn.style.borderColor = 'var(--border)';
+    staffBtn.style.background = 'var(--card-bg)';
+    staffBtn.style.color = 'var(--gray)';
+    staffSelect.style.display = 'none';
+    agentInput.style.display = '';
+  }
+}
+
 function showReservationModal() {
   document.getElementById('resAgentName').value = '';
   document.getElementById('resDateTime').value = '';
   document.getElementById('resMemo').value = '';
+  populateStaffSelect('resStaffSelect');
   populateStaffSelect('resRegisteredBy');
+  setResType('staff');
   document.getElementById('reservationModal').classList.add('active');
 }
 
 async function submitReservation() {
-  const agentName = document.getElementById('resAgentName').value.trim();
+  const agentName = resType === 'staff'
+    ? document.getElementById('resStaffSelect').value
+    : document.getElementById('resAgentName').value.trim();
   const dateTime = document.getElementById('resDateTime').value;
 
-  if (!agentName) { showToast('業者名を入力してください'); return; }
+  if (!agentName) { showToast('予約者名を入力してください'); return; }
   if (!dateTime) { showToast('案内日時を選択してください'); return; }
 
   closeModal('reservationModal');
