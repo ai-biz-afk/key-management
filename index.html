@@ -906,11 +906,12 @@ async function selectStaff(name, action) {
     showToast('更新中...');
     const result = await api('updateKeyStatus', {
       recordId: currentProperty.id,
-      keyStatus: currentProperty.keyStatus,
+      keyStatus: name,
       holder: name
     }, 'POST');
 
     if (result.success) {
+      currentProperty.keyStatus = name;
       currentProperty.holder = name;
       currentProperty.holdDate = new Date().toISOString();
       renderDetail();
