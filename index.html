@@ -547,8 +547,10 @@
     <input type="datetime-local" id="resDateTime">
     <label>メモ（任意）</label>
     <textarea id="resMemo" placeholder="連絡先や注意事項など"></textarea>
-    <label>登録者</label>
-    <select id="resRegisteredBy"></select>
+    <div id="resRegisteredByWrap" style="display:none;">
+      <label>登録者</label>
+      <select id="resRegisteredBy"></select>
+    </div>
     <div class="modal-actions">
       <button class="cancel" onclick="closeModal('reservationModal')">キャンセル</button>
       <button class="confirm" onclick="submitReservation()">追加する</button>
@@ -957,6 +959,7 @@ function setResType(type) {
   const extBtn = document.getElementById('resTypeExternal');
   const staffSelect = document.getElementById('resStaffSelect');
   const agentInput = document.getElementById('resAgentName');
+  const regWrap = document.getElementById('resRegisteredByWrap');
 
   if (type === 'staff') {
     staffBtn.style.borderColor = 'var(--primary)';
@@ -967,6 +970,7 @@ function setResType(type) {
     extBtn.style.color = 'var(--gray)';
     staffSelect.style.display = '';
     agentInput.style.display = 'none';
+    regWrap.style.display = 'none';
   } else {
     extBtn.style.borderColor = 'var(--primary)';
     extBtn.style.background = 'var(--blue-bg)';
@@ -976,6 +980,7 @@ function setResType(type) {
     staffBtn.style.color = 'var(--gray)';
     staffSelect.style.display = 'none';
     agentInput.style.display = '';
+    regWrap.style.display = '';
   }
 }
 
@@ -1001,12 +1006,16 @@ async function submitReservation() {
   closeModal('reservationModal');
   showToast('予約を追加中...');
 
+  const propName = currentProperty.name
+    ? (currentProperty.name + (currentProperty.room ? ' ' + currentProperty.room : ''))
+    : (currentProperty.displayAddress || currentProperty.address);
   const result = await api('addReservation', {
     recordId: currentProperty.id,
+    propertyName: propName,
     agentName: agentName,
     dateTime: dateTime,
     memo: document.getElementById('resMemo').value.trim(),
-    registeredBy: document.getElementById('resRegisteredBy').value
+    registeredBy: resType === 'staff' ? agentName : document.getElementById('resRegisteredBy').value
   }, 'POST');
 
   if (result.success) {
