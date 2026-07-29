@@ -59,10 +59,6 @@
   }
   .header-left { display: flex; align-items: center; gap: 4px; }
   .header-right { display: flex; align-items: center; gap: 8px; }
-  .header-right select {
-    background: rgba(255,255,255,0.2); color: #fff; border: none;
-    font-size: 12px; padding: 4px 8px; border-radius: 6px;
-  }
   .settings-btn {
     background: none; border: none; color: #fff;
     font-size: 18px; cursor: pointer; padding: 4px;
@@ -476,7 +472,6 @@
     <h1 id="headerTitle">🔑 鍵管理</h1>
   </div>
   <div class="header-right">
-    <select id="currentUser"></select>
     <button class="settings-btn" onclick="showStaffView()" title="スタッフ管理">⚙</button>
   </div>
 </div>
@@ -547,6 +542,8 @@
     <input type="datetime-local" id="resDateTime">
     <label>メモ（任意）</label>
     <textarea id="resMemo" placeholder="連絡先や注意事項など"></textarea>
+    <label>登録者</label>
+    <select id="resRegisteredBy"></select>
     <div class="modal-actions">
       <button class="cancel" onclick="closeModal('reservationModal')">キャンセル</button>
       <button class="confirm" onclick="submitReservation()">追加する</button>
@@ -582,7 +579,6 @@ let allProperties = [];
 let currentFilter = 'all';
 let currentProperty = null;
 let staffList = [];    // [{staffId, name, order, status}, ...]
-let currentUser = '';
 let currentView = 'list'; // 'list', 'detail', 'staff'
 
 // ── Init ──
@@ -619,7 +615,7 @@ async function loadStaff() {
     const result = await api('getStaff');
     if (result.success) {
       staffList = result.staff;
-      populateUserSelect();
+      // staff select is populated on-demand
     }
   } catch (e) {
     console.error('Staff load failed:', e);
@@ -627,8 +623,8 @@ async function loadStaff() {
   }
 }
 
-function populateUserSelect() {
-  const select = document.getElementById('currentUser');
+function populateStaffSelect(selectId) {
+  const select = document.getElementById(selectId);
   select.innerHTML = '';
   const activeStaff = staffList.filter(s => s.status === '有効');
   activeStaff.forEach(s => {
@@ -637,10 +633,6 @@ function populateUserSelect() {
     opt.textContent = s.name;
     select.appendChild(opt);
   });
-  if (activeStaff.length > 0) {
-    currentUser = activeStaff[0].name;
-  }
-  select.onchange = e => { currentUser = e.target.value; };
 }
 
 // ── Load Properties ──
@@ -949,6 +941,7 @@ function showReservationModal() {
   document.getElementById('resAgentName').value = '';
   document.getElementById('resDateTime').value = '';
   document.getElementById('resMemo').value = '';
+  populateStaffSelect('resRegisteredBy');
   document.getElementById('reservationModal').classList.add('active');
 }
 
@@ -967,7 +960,7 @@ async function submitReservation() {
     agentName: agentName,
     dateTime: dateTime,
     memo: document.getElementById('resMemo').value.trim(),
-    registeredBy: currentUser
+    registeredBy: document.getElementById('resRegisteredBy').value
   }, 'POST');
 
   if (result.success) {
@@ -1169,7 +1162,7 @@ async function reorderItems(fromId, toId) {
   const result = await api('reorderStaff', { orderedIds: ids }, 'POST');
   if (result.success) {
     showToast('✅ 並び順を保存しました');
-    populateUserSelect();
+    // staff select is populated on-demand
   } else {
     showToast('⚠️ 保存失敗: ' + (result.error || ''));
   }
@@ -1208,7 +1201,7 @@ async function submitStaffEdit() {
       const s = staffList.find(st => st.staffId === staffId);
       if (s) s.name = name;
       renderStaffManageList();
-      populateUserSelect();
+      // staff select is populated on-demand
       showToast('✅ 更新しました');
     } else {
       showToast('⚠️ 更新失敗: ' + (result.error || ''));
@@ -1225,7 +1218,7 @@ async function submitStaffEdit() {
         status: '有効'
       });
       renderStaffManageList();
-      populateUserSelect();
+      // staff select is populated on-demand
       showToast('✅ 追加しました');
     } else {
       showToast('⚠️ 追加失敗: ' + (result.error || ''));
@@ -1249,7 +1242,7 @@ async function toggleStaffStatus(staffId) {
   if (result.success) {
     s.status = newStatus;
     renderStaffManageList();
-    populateUserSelect();
+    // staff select is populated on-demand
     showToast('✅ ' + s.name + 'を' + newStatus + 'にしました');
   } else {
     showToast('⚠️ 更新失敗: ' + (result.error || ''));
