@@ -733,9 +733,7 @@ function getStatusCategory(p) {
 
 function getBadge(p) {
   const s = p.keyStatus || '';
-  const hasHolder = p.holder && s !== 'ソロン';
-
-  if (hasHolder) return '<span class="badge badge-out">🔴 持出中</span>';
+  if (p.holder) return '<span class="badge badge-out">🔴 持出中</span>';
   if (s === 'ソロン') return '<span class="badge badge-solon">🟢 ソロン</span>';
   if (s.includes('現地キー')) return '<span class="badge badge-genchi">🔵 現地キー</span>';
   if (s === '居住中') return '<span class="badge badge-jyuchu">🟣 居住中</span>';
@@ -796,7 +794,7 @@ function showStaffView() {
 function renderDetail() {
   const p = currentProperty;
   const s = p.keyStatus || '';
-  const hasHolder = p.holder && s !== 'ソロン';
+  const hasHolder = !!p.holder;
 
   let icon, statusText, statusColor;
   if (hasHolder) {
