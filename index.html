@@ -994,17 +994,18 @@ function populateTimeSelects() {
   const hourSel = document.getElementById('resHour');
   const minSel = document.getElementById('resMinute');
   hourSel.innerHTML = '<option value="">時</option>';
-  minSel.innerHTML = '<option value="">分</option>';
-  for (let h = 0; h < 24; h++) {
+  minSel.innerHTML = '';
+  for (let h = 8; h < 24; h++) {
     const opt = document.createElement('option');
     opt.value = String(h).padStart(2, '0');
     opt.textContent = h + '時';
     hourSel.appendChild(opt);
   }
-  ['00', '30'].forEach(m => {
+  ['00', '30'].forEach((m, i) => {
     const opt = document.createElement('option');
     opt.value = m;
     opt.textContent = m + '分';
+    if (i === 0) opt.selected = true;
     minSel.appendChild(opt);
   });
 }
