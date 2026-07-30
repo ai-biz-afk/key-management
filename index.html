@@ -1122,13 +1122,20 @@ async function submitReservation() {
 
   if (editingReservationId) {
     // 編集モード
+    const oldRes = (currentProperty.reservations || []).find(res => res.reservationId === editingReservationId);
+    const propName = currentProperty.name
+      ? (currentProperty.name + (currentProperty.room ? ' ' + currentProperty.room : ''))
+      : (currentProperty.displayAddress || currentProperty.address);
     showToast('予約を更新中...');
     const result = await api('updateReservation', {
       reservationId: editingReservationId,
       agentName: agentName,
       dateTime: dateTime,
       memo: memo,
-      registeredBy: resType === 'staff' ? agentName : document.getElementById('resRegisteredBy').value
+      registeredBy: resType === 'staff' ? agentName : document.getElementById('resRegisteredBy').value,
+      propertyName: propName,
+      oldDateTime: oldRes ? oldRes.dateTime : '',
+      oldAgentName: oldRes ? oldRes.agentName : ''
     }, 'POST');
 
     if (result.success) {
