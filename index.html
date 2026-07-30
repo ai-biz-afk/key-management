@@ -570,6 +570,8 @@
     <h3 id="staffEditModalTitle">スタッフを追加</h3>
     <label>名前</label>
     <input type="text" id="staffEditName" placeholder="例: 山田 太郎">
+    <label>メールアドレス</label>
+    <input type="email" id="staffEditEmail" placeholder="例: yamada@example.com">
     <input type="hidden" id="staffEditId">
     <div class="modal-actions">
       <button class="cancel" onclick="closeModal('staffEditModal')">キャンセル</button>
@@ -1291,6 +1293,7 @@ async function reorderItems(fromId, toId) {
 function showAddStaffModal() {
   document.getElementById('staffEditModalTitle').textContent = 'スタッフを追加';
   document.getElementById('staffEditName').value = '';
+  document.getElementById('staffEditEmail').value = '';
   document.getElementById('staffEditId').value = '';
   document.getElementById('staffEditModal').classList.add('active');
 }
@@ -1298,14 +1301,16 @@ function showAddStaffModal() {
 function showEditStaffModal(staffId) {
   const s = staffList.find(st => st.staffId === staffId);
   if (!s) return;
-  document.getElementById('staffEditModalTitle').textContent = '名前を編集';
+  document.getElementById('staffEditModalTitle').textContent = 'スタッフを編集';
   document.getElementById('staffEditName').value = s.name;
+  document.getElementById('staffEditEmail').value = s.email || '';
   document.getElementById('staffEditId').value = staffId;
   document.getElementById('staffEditModal').classList.add('active');
 }
 
 async function submitStaffEdit() {
   const name = document.getElementById('staffEditName').value.trim();
+  const email = document.getElementById('staffEditEmail').value.trim();
   const staffId = document.getElementById('staffEditId').value;
 
   if (!name) { showToast('名前を入力してください'); return; }
@@ -1315,10 +1320,10 @@ async function submitStaffEdit() {
   if (staffId) {
     // Edit
     showToast('更新中...');
-    const result = await api('updateStaff', { staffId: staffId, name: name }, 'POST');
+    const result = await api('updateStaff', { staffId: staffId, name: name, email: email }, 'POST');
     if (result.success) {
       const s = staffList.find(st => st.staffId === staffId);
-      if (s) s.name = name;
+      if (s) { s.name = name; s.email = email; }
       renderStaffManageList();
       // staff select is populated on-demand
       showToast('✅ 更新しました');
@@ -1328,13 +1333,14 @@ async function submitStaffEdit() {
   } else {
     // Add
     showToast('追加中...');
-    const result = await api('addStaff', { name: name }, 'POST');
+    const result = await api('addStaff', { name: name, email: email }, 'POST');
     if (result.success) {
       staffList.push({
         staffId: result.staffId,
         name: name,
         order: staffList.length + 1,
-        status: '有効'
+        status: '有効',
+        email: email
       });
       renderStaffManageList();
       // staff select is populated on-demand
