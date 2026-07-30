@@ -893,14 +893,18 @@ function filterProperties() {
 function showStaffModal(action) {
   const grid = document.getElementById('staffGrid');
   const activeStaff = staffList.filter(s => s.status === '有効');
-  grid.innerHTML = activeStaff.map(s => `
+  const staffButtons = activeStaff.map(s => `
     <button class="staff-btn" onclick="selectStaff('${escapeHtml(s.name)}', '${action}')">${escapeHtml(s.name)}</button>
-  `).join('') + `
-    <button class="staff-btn" style="border-color:var(--orange);color:var(--orange);" onclick="selectStaff('他業者', '${action}')">他業者</button>
-  `;
+  `).join('');
 
   if (action === 'takeout') {
+    grid.innerHTML = staffButtons + `
+      <button class="staff-btn" style="border-color:var(--orange);color:var(--orange);" onclick="selectStaff('他業者', '${action}')">他業者</button>
+    `;
     document.getElementById('staffModalTitle').textContent = '🔑 誰が持ち出しますか？';
+  } else if (action === 'return') {
+    grid.innerHTML = staffButtons;
+    document.getElementById('staffModalTitle').textContent = '📥 誰が受け取りましたか？';
   }
   document.getElementById('staffModal').classList.add('active');
 }
@@ -928,11 +932,38 @@ async function selectStaff(name, action) {
     } else {
       showToast('⚠️ 更新失敗: ' + (result.error || ''));
     }
+  } else if (action === 'return') {
+    showToast('更新中...');
+    const propName = currentProperty.name
+      ? (currentProperty.name + (currentProperty.room ? ' ' + currentProperty.room : ''))
+      : (currentProperty.displayAddress || currentProperty.address);
+    const result = await api('updateKeyStatus', {
+      recordId: currentProperty.id,
+      action: 'return',
+      propertyName: propName,
+      returnedBy: name
+    }, 'POST');
+
+    if (result.success) {
+      currentProperty.keyStatus = 'ソロン';
+      currentProperty.holder = '';
+      currentProperty.holdDate = '';
+      renderDetail();
+      showToast('✅ ' + name + 'が受け取りました');
+    } else {
+      showToast('⚠️ 返却失敗: ' + (result.error || ''));
+    }
   }
 }
 
 // ── Return Key ──
 async function returnKey() {
+  if (currentProperty.holder === '他業者') {
+    // 他業者からの返却: 受け取ったスタッフを選択
+    showStaffModal('return');
+    return;
+  }
+
   if (!confirm(currentProperty.holder + 'の鍵を返却しますか？')) return;
 
   showToast('更新中...');
@@ -942,7 +973,8 @@ async function returnKey() {
   const result = await api('updateKeyStatus', {
     recordId: currentProperty.id,
     action: 'return',
-    propertyName: propName
+    propertyName: propName,
+    returnedBy: currentProperty.holder
   }, 'POST');
 
   if (result.success) {
