@@ -509,6 +509,11 @@
     <button class="add-reservation-btn" onclick="showReservationModal()" style="margin-top:0;margin-bottom:8px;">+ 予約を追加</button>
     <div id="reservationList"></div>
   </div>
+  <div class="section" id="mapSection" style="display:none;">
+    <div class="section-title">📍 所在地</div>
+    <div id="mapContainer" style="width:100%;height:250px;border-radius:8px;overflow:hidden;"></div>
+    <a id="mapLink" href="#" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;padding:8px 16px;background:var(--primary);color:#fff;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600;">📍 Google Mapsで開く（ナビ可）</a>
+  </div>
 </div>
 
 <!-- ===== Staff Management View ===== -->
@@ -880,6 +885,19 @@ function renderDetail() {
   }
   document.getElementById('reservationList').innerHTML = resHtml;
   document.getElementById('noteText').textContent = p.note || '補足情報なし';
+
+  // ── Map ──
+  const mapAddress = p.displayAddress || p.address || '';
+  const mapSection = document.getElementById('mapSection');
+  if (mapAddress) {
+    const encoded = encodeURIComponent(mapAddress);
+    document.getElementById('mapContainer').innerHTML =
+      '<iframe src="https://maps.google.com/maps?q=' + encoded + '&output=embed&hl=ja" width="100%" height="250" style="border:0;" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>';
+    document.getElementById('mapLink').href = 'https://www.google.com/maps/search/?api=1&query=' + encoded;
+    mapSection.style.display = '';
+  } else {
+    mapSection.style.display = 'none';
+  }
 }
 
 // ── Filter ──
