@@ -535,7 +535,7 @@
 <!-- ===== Reservation Modal ===== -->
 <div class="modal-overlay" id="reservationModal">
   <div class="modal">
-    <h3>📅 持出予約を追加</h3>
+    <h3 id="resModalTitle">📅 持出予約を追加</h3>
     <label>予約者名</label>
     <div style="display:flex;gap:6px;margin-bottom:8px;">
       <button type="button" id="resTypeStaff" onclick="setResType('staff')" style="flex:1;padding:8px;border:1.5px solid var(--primary);border-radius:8px;background:var(--blue-bg);color:var(--primary);font-size:12px;font-weight:600;cursor:pointer;">自社スタッフ</button>
@@ -559,7 +559,7 @@
     </div>
     <div class="modal-actions">
       <button class="cancel" onclick="closeModal('reservationModal')">キャンセル</button>
-      <button class="confirm" onclick="submitReservation()">追加する</button>
+      <button class="confirm" id="resSubmitBtn" onclick="submitReservation()">追加する</button>
     </div>
   </div>
 </div>
@@ -871,7 +871,10 @@ function renderDetail() {
             <div class="datetime">${formatDateTime(r.dateTime)} 案内予定</div>
             ${r.memo ? '<div style="font-size:10px;color:var(--gray);margin-top:2px;">' + escapeHtml(r.memo) + '</div>' : ''}
           </div>
-          <button class="cancel-btn" onclick="cancelRes('${r.reservationId}')">✕ 取消</button>
+          <div style="display:flex;gap:4px;">
+            <button class="cancel-btn" onclick="editRes('${r.reservationId}')">✏ 編集</button>
+            <button class="cancel-btn" onclick="cancelRes('${r.reservationId}')">✕ 取消</button>
+          </div>
         </div>
       `).join('');
   }
@@ -992,6 +995,7 @@ async function returnKey() {
 
 // ── Reservation Modal ──
 let resType = 'staff'; // 'staff' or 'external'
+let editingReservationId = null; // null=新規追加, 値あり=編集モード
 
 function setResType(type) {
   resType = type;
@@ -1045,6 +1049,9 @@ function populateTimeSelects() {
 }
 
 function showReservationModal() {
+  editingReservationId = null;
+  document.getElementById('resModalTitle').textContent = '📅 持出予約を追加';
+  document.getElementById('resSubmitBtn').textContent = '追加する';
   document.getElementById('resAgentName').value = '';
   document.getElementById('resDate').value = '';
   populateTimeSelects();
@@ -1052,6 +1059,47 @@ function showReservationModal() {
   populateStaffSelect('resStaffSelect');
   populateStaffSelect('resRegisteredBy');
   setResType('staff');
+  document.getElementById('reservationModal').classList.add('active');
+}
+
+function editRes(reservationId) {
+  const r = (currentProperty.reservations || []).find(res => res.reservationId === reservationId);
+  if (!r) return;
+
+  editingReservationId = reservationId;
+  document.getElementById('resModalTitle').textContent = '📅 予約を編集';
+  document.getElementById('resSubmitBtn').textContent = '保存する';
+
+  populateStaffSelect('resStaffSelect');
+  populateStaffSelect('resRegisteredBy');
+
+  // 予約者がスタッフリストにいるか判定
+  const isStaff = staffList.some(s => s.status === '有効' && s.name === r.agentName);
+  if (isStaff) {
+    setResType('staff');
+    document.getElementById('resStaffSelect').value = r.agentName;
+  } else {
+    setResType('external');
+    document.getElementById('resAgentName').value = r.agentName;
+    if (r.registeredBy) document.getElementById('resRegisteredBy').value = r.registeredBy;
+  }
+
+  // 日付・時間をセット
+  const dt = new Date(r.dateTime);
+  if (!isNaN(dt.getTime())) {
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const d = String(dt.getDate()).padStart(2, '0');
+    document.getElementById('resDate').value = y + '-' + m + '-' + d;
+    populateTimeSelects();
+    document.getElementById('resHour').value = String(dt.getHours()).padStart(2, '0');
+    document.getElementById('resMinute').value = dt.getMinutes() >= 30 ? '30' : '00';
+  } else {
+    document.getElementById('resDate').value = '';
+    populateTimeSelects();
+  }
+
+  document.getElementById('resMemo').value = r.memo || '';
   document.getElementById('reservationModal').classList.add('active');
 }
 
@@ -1068,36 +1116,64 @@ async function submitReservation() {
   if (!resHour || !resMin) { showToast('案内時間を選択してください'); return; }
 
   const dateTime = resDate + 'T' + resHour + ':' + resMin;
+  const memo = document.getElementById('resMemo').value.trim();
 
   closeModal('reservationModal');
-  showToast('予約を追加中...');
 
-  const propName = currentProperty.name
-    ? (currentProperty.name + (currentProperty.room ? ' ' + currentProperty.room : ''))
-    : (currentProperty.displayAddress || currentProperty.address);
-  const result = await api('addReservation', {
-    recordId: currentProperty.id,
-    propertyName: propName,
-    agentName: agentName,
-    dateTime: dateTime,
-    memo: document.getElementById('resMemo').value.trim(),
-    registeredBy: resType === 'staff' ? agentName : document.getElementById('resRegisteredBy').value
-  }, 'POST');
-
-  if (result.success) {
-    if (!currentProperty.reservations) currentProperty.reservations = [];
-    currentProperty.reservations.push({
-      reservationId: result.reservationId,
-      recordId: currentProperty.id,
+  if (editingReservationId) {
+    // 編集モード
+    showToast('予約を更新中...');
+    const result = await api('updateReservation', {
+      reservationId: editingReservationId,
       agentName: agentName,
       dateTime: dateTime,
-      status: '有効',
-      memo: document.getElementById('resMemo').value.trim()
-    });
-    renderDetail();
-    showToast('✅ 予約を追加しました');
+      memo: memo,
+      registeredBy: resType === 'staff' ? agentName : document.getElementById('resRegisteredBy').value
+    }, 'POST');
+
+    if (result.success) {
+      const r = currentProperty.reservations.find(res => res.reservationId === editingReservationId);
+      if (r) {
+        r.agentName = agentName;
+        r.dateTime = dateTime;
+        r.memo = memo;
+      }
+      renderDetail();
+      showToast('✅ 予約を更新しました');
+    } else {
+      showToast('⚠️ 更新失敗: ' + (result.error || ''));
+    }
+    editingReservationId = null;
   } else {
-    showToast('⚠️ 追加失敗: ' + (result.error || ''));
+    // 新規追加モード
+    showToast('予約を追加中...');
+    const propName = currentProperty.name
+      ? (currentProperty.name + (currentProperty.room ? ' ' + currentProperty.room : ''))
+      : (currentProperty.displayAddress || currentProperty.address);
+    const result = await api('addReservation', {
+      recordId: currentProperty.id,
+      propertyName: propName,
+      agentName: agentName,
+      dateTime: dateTime,
+      memo: memo,
+      registeredBy: resType === 'staff' ? agentName : document.getElementById('resRegisteredBy').value
+    }, 'POST');
+
+    if (result.success) {
+      if (!currentProperty.reservations) currentProperty.reservations = [];
+      currentProperty.reservations.push({
+        reservationId: result.reservationId,
+        recordId: currentProperty.id,
+        agentName: agentName,
+        dateTime: dateTime,
+        status: '有効',
+        memo: memo
+      });
+      renderDetail();
+      showToast('✅ 予約を追加しました');
+    } else {
+      showToast('⚠️ 追加失敗: ' + (result.error || ''));
+    }
   }
 }
 
