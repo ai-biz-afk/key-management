@@ -219,13 +219,22 @@
     margin-bottom: 6px;
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
   }
   .reservation-card .agent { font-size: 13px; font-weight: 600; color: var(--orange); }
   .reservation-card .datetime { font-size: 11px; color: #bf360c; margin-top: 2px; }
+  .reservation-card .info { flex: 1; min-width: 0; }
+  .reservation-card .memo {
+    font-size: 10px; color: var(--gray); margin-top: 2px;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  .reservation-card .actions {
+    display: flex; gap: 4px; flex-shrink: 0; margin-left: 8px;
+  }
   .reservation-card .cancel-btn {
     background: none; border: none; color: var(--text-sub);
     font-size: 12px; cursor: pointer; padding: 4px 8px;
+    white-space: nowrap; flex-shrink: 0;
   }
   .reservation-card .cancel-btn:hover { color: var(--red); }
 
@@ -871,12 +880,12 @@ function renderDetail() {
       .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime))
       .map(r => `
         <div class="reservation-card">
-          <div>
+          <div class="info">
             <div class="agent">${escapeHtml(r.agentName)}</div>
             <div class="datetime">${formatDateTime(r.dateTime)} 案内予定</div>
-            ${r.memo ? '<div style="font-size:10px;color:var(--gray);margin-top:2px;">' + escapeHtml(r.memo) + '</div>' : ''}
+            ${r.memo ? '<div class="memo">' + wrapMemo(r.memo) + '</div>' : ''}
           </div>
-          <div style="display:flex;gap:4px;">
+          <div class="actions">
             <button class="cancel-btn" onclick="editRes('${r.reservationId}')">✏ 編集</button>
             <button class="cancel-btn" onclick="cancelRes('${r.reservationId}')">✕ 取消</button>
           </div>
@@ -1503,6 +1512,19 @@ function formatDateTime(isoStr) {
 function escapeHtml(str) {
   if (!str) return '';
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function wrapMemo(str) {
+  if (!str) return '';
+  const lines = str.split('\n');
+  const chunks = [];
+  lines.forEach(line => {
+    if (line.length === 0) { chunks.push(''); return; }
+    for (let i = 0; i < line.length; i += 21) {
+      chunks.push(line.slice(i, i + 21));
+    }
+  });
+  return chunks.map(escapeHtml).join('<br>');
 }
 
 // Close modals on overlay click
