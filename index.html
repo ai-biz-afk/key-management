@@ -540,6 +540,10 @@
   <div class="modal">
     <h3 id="staffModalTitle">🔑 誰が持ち出しますか？</h3>
     <div class="staff-grid" id="staffGrid"></div>
+    <div id="returnMemoWrapper" style="display:none;margin-top:12px;">
+      <label style="font-size:12px;color:var(--text-sub);display:block;margin-bottom:4px;">情報共有（案内結果等・任意）</label>
+      <textarea id="returnMemo" rows="3" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;resize:vertical;"></textarea>
+    </div>
     <div class="modal-actions" style="margin-top:16px;">
       <button class="cancel" onclick="closeModal('staffModal')">キャンセル</button>
     </div>
@@ -936,14 +940,19 @@ function showStaffModal(action) {
     <button class="staff-btn" onclick="selectStaff('${escapeHtml(s.name)}', '${action}')">${escapeHtml(s.name)}</button>
   `).join('');
 
+  const returnMemoWrapper = document.getElementById('returnMemoWrapper');
+  document.getElementById('returnMemo').value = '';
+
   if (action === 'takeout') {
     grid.innerHTML = staffButtons + `
       <button class="staff-btn" style="border-color:var(--orange);color:var(--orange);" onclick="selectStaff('他業者', '${action}')">他業者</button>
     `;
     document.getElementById('staffModalTitle').textContent = '🔑 誰が持ち出しますか？';
+    returnMemoWrapper.style.display = 'none';
   } else if (action === 'return') {
     grid.innerHTML = staffButtons;
     document.getElementById('staffModalTitle').textContent = '📥 誰が受け取りましたか？';
+    returnMemoWrapper.style.display = 'block';
   }
   document.getElementById('staffModal').classList.add('active');
 }
@@ -976,11 +985,13 @@ async function selectStaff(name, action) {
     const propName = currentProperty.name
       ? (currentProperty.name + (currentProperty.room ? ' ' + currentProperty.room : ''))
       : (currentProperty.displayAddress || currentProperty.address);
+    const shareInfo = document.getElementById('returnMemo').value.trim();
     const result = await api('updateKeyStatus', {
       recordId: currentProperty.id,
       action: 'return',
       propertyName: propName,
-      returnedBy: name
+      returnedBy: name,
+      shareInfo: shareInfo
     }, 'POST');
 
     if (result.success) {
