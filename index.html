@@ -878,7 +878,7 @@ function renderDetail() {
   }
   document.getElementById('actionButtons').innerHTML = actionsHtml;
 
-  const reservations = p.reservations || [];
+  const reservations = getFutureReservations(p);
   let resHtml = '';
   if (reservations.length === 0) {
     resHtml = '<div class="no-reservations">予約なし</div>';
