@@ -682,6 +682,12 @@ async function loadProperties() {
 }
 
 // ── Render List ──
+function getFutureReservations(p) {
+  if (!p.reservations || p.reservations.length === 0) return [];
+  const now = new Date();
+  return p.reservations.filter(r => new Date(r.dateTime) >= now);
+}
+
 function renderList() {
   const query = document.getElementById('searchInput').value.toLowerCase();
   let filtered = allProperties;
@@ -698,7 +704,7 @@ function renderList() {
   if (currentFilter !== 'all') {
     filtered = filtered.filter(p => {
       const status = getStatusCategory(p);
-      if (currentFilter === '予約あり') return p.reservations && p.reservations.length > 0;
+      if (currentFilter === '予約あり') return getFutureReservations(p).length > 0;
       if (currentFilter === '持出中') return status === '持出中';
       if (currentFilter === '他業者') return status === '他業者';
       if (currentFilter === '現地キー') return p.keyStatus && p.keyStatus.includes('現地キー');
@@ -721,8 +727,9 @@ function renderList() {
     if (p.holder && p.keyStatus !== 'ソロン') {
       info = `<div class="prop-info" style="color:var(--red);">📌 ${p.holder}が持出中</div>`;
     }
-    if (p.reservations && p.reservations.length > 0) {
-      const next = p.reservations.sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime))[0];
+    const futureReservations = getFutureReservations(p);
+    if (futureReservations.length > 0) {
+      const next = futureReservations.sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime))[0];
       const dt = formatDateTime(next.dateTime);
       info += `<div class="prop-info" style="color:var(--orange);">📅 ${dt} ${next.agentName}が案内予定</div>`;
     }
