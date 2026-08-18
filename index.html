@@ -546,6 +546,7 @@
     </div>
     <div class="modal-actions" style="margin-top:16px;">
       <button class="cancel" onclick="closeModal('staffModal')">キャンセル</button>
+      <button class="confirm" id="staffConfirmBtn" style="display:none;" onclick="confirmReturnStaff()">✅ 確定</button>
     </div>
   </div>
 </div>
@@ -613,6 +614,7 @@ let currentFilter = 'all';
 let currentProperty = null;
 let staffList = [];    // [{staffId, name, order, status}, ...]
 let currentView = 'list'; // 'list', 'detail', 'staff'
+let selectedReturnStaff = null; // 返却モーダルで選択中のスタッフ名（確定ボタン押下まで送信しない）
 
 // ── Init ──
 document.addEventListener('DOMContentLoaded', async () => {
@@ -936,25 +938,46 @@ function filterProperties() {
 function showStaffModal(action) {
   const grid = document.getElementById('staffGrid');
   const activeStaff = staffList.filter(s => s.status === '有効');
-  const staffButtons = activeStaff.map(s => `
-    <button class="staff-btn" onclick="selectStaff('${escapeHtml(s.name)}', '${action}')">${escapeHtml(s.name)}</button>
-  `).join('');
 
   const returnMemoWrapper = document.getElementById('returnMemoWrapper');
+  const confirmBtn = document.getElementById('staffConfirmBtn');
   document.getElementById('returnMemo').value = '';
+  selectedReturnStaff = null;
 
   if (action === 'takeout') {
+    const staffButtons = activeStaff.map(s => `
+      <button class="staff-btn" onclick="selectStaff('${escapeHtml(s.name)}', '${action}')">${escapeHtml(s.name)}</button>
+    `).join('');
     grid.innerHTML = staffButtons + `
       <button class="staff-btn" style="border-color:var(--orange);color:var(--orange);" onclick="selectStaff('他業者', '${action}')">他業者</button>
     `;
     document.getElementById('staffModalTitle').textContent = '🔑 誰が持ち出しますか？';
     returnMemoWrapper.style.display = 'none';
+    confirmBtn.style.display = 'none';
   } else if (action === 'return') {
+    const staffButtons = activeStaff.map(s => `
+      <button type="button" class="staff-btn" onclick="toggleReturnStaffSelection('${escapeHtml(s.name)}', this)">${escapeHtml(s.name)}</button>
+    `).join('');
     grid.innerHTML = staffButtons;
     document.getElementById('staffModalTitle').textContent = '📥 誰が受け取りましたか？';
     returnMemoWrapper.style.display = 'block';
+    confirmBtn.style.display = 'block';
   }
   document.getElementById('staffModal').classList.add('active');
+}
+
+function toggleReturnStaffSelection(name, btn) {
+  document.querySelectorAll('#staffGrid .staff-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedReturnStaff = name;
+}
+
+function confirmReturnStaff() {
+  if (!selectedReturnStaff) {
+    showToast('⚠️ 受け取った方を選択してください');
+    return;
+  }
+  selectStaff(selectedReturnStaff, 'return');
 }
 
 async function selectStaff(name, action) {
